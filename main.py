@@ -5,11 +5,13 @@ from tensorflow.estimator import ModeKeys
 PARSER = argparse.ArgumentParser(description='Train a model according to given hyperparameters.')
 
 # Mode
-PARSER.add_argument('-M', '--mode', type=str, default='test',
+PARSER.add_argument('-M', '--mode', type=str, default=ModeKeys.TRAIN,
                     choices=[ModeKeys.TRAIN, ModeKeys.EVAL, ModeKeys.PREDICT, 'train-and-eval', 'test'],  # TODO EXPORT MODEL
                     help='Define the estimator mode')
 # Model options
 PARSER.add_argument('-load', '--load_model', type=str, default='', help=' If declared, the model saved will be loaded.')
+PARSER.add_argument('-resume', action='store_true', default=False, help='Continue training from loaded model.')
+
 PARSER.add_argument('-no_bn', action='store_false', default=True, help='Batch Normalization.')
 PARSER.add_argument('-dr', '--dropout', type=float, default=0.5, help='Dropout rate.')
 PARSER.add_argument('-cls', '--classes', type=int, default=2, choices=[2], help='Choose 2classes')
