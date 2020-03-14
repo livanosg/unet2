@@ -45,35 +45,30 @@ def up_block(inputs, connection, filters, dropout, batch_norm, padding='same'):
     return double_conv(up, filters//2, dropout, batch_norm, padding=padding)
 
 
-def unet(dropout, batch_norm):
+def unet(args):
+    if args.modality in ('CT', 'ALL'):
+        input_shape = [512, 512, 1]
+    else:
+        input_shape = [320, 320, 1]
     padding = 'same'
-    img_inputs = Input([None, None, 1])
-    with tf.name_scope('Down_1'):
-        out, connection_1 = down_block(img_inputs, 32, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Down_2'):
-        out, connection_2 = down_block(out, 64, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Down_3'):
-        out, connection_3 = down_block(out, 128, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Down_4'):
-        out, connection_4 = down_block(out, 256, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Bridge'):
-        bridge = double_conv(inputs=out, filters=1024, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Up_1'):
-        up = up_block(inputs=bridge, connection=connection_4, filters=256, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Up_2'):
-        up = up_block(inputs=up, connection=connection_3, filters=128, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Up_3'):
-        up = up_block(inputs=up, connection=connection_2, filters=64, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Up_4'):
-        up = up_block(inputs=up, connection=connection_1, filters=32, dropout=dropout, batch_norm=batch_norm, padding=padding)
-    with tf.name_scope('Output'):
-        up = Conv2D(32, kernel_size=3, padding=padding)(up)
-        up = tf.keras.layers.LeakyReLU()(up)
-        up = Conv2D(32, kernel_size=1, padding=padding)(up)
-        up = tf.keras.layers.LeakyReLU()(up)
-        out = Conv2D(2, kernel_size=1)(up)
-        predict = Softmax(axis=-1)(out)
-    return Model(img_inputs, predict, name='Unet')
+    img_inputs = Input(shape=input_shape)
+    block_1 = Model(inputs=img_inputs,outputs=[down_block(img_inputs, 32, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)], name="Block_1")
+    block_2 = Model(inputs=block_1.output[0],outputs=[down_block(block_1.output[0], 64, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)], name="Block_2")
+    block_3 = Model(inputs=block_2.output[0],outputs=[down_block(block_2.output[0], 128, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)], name="Block_3")
+    block_4 = Model(inputs=block_3.output[0],outputs=[down_block(block_3.output[0], 256, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)], name="Block_4")
+    bridge = Model(inputs=block_4.output[0],outputs=[double_conv(inputs=block_4.output[0], filters=1024, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)], name="Block_4")
+    # bridge = double_conv(inputs=out, filters=1024, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)
+    # up = up_block(inputs=bridge, connection=connection_4, filters=256, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)
+    # up = up_block(inputs=up, connection=connection_3, filters=128, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)
+    # up = up_block(inputs=up, connection=connection_2, filters=64, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)
+    # up = up_block(inputs=up, connection=connection_1, filters=32, dropout=args.dropout, batch_norm=args.no_bn, padding=padding)
+    # up = Conv2D(32, kernel_size=3, padding=padding)(up)
+    # up = tf.keras.layers.LeakyReLU()(up)
+    # up = Conv2D(32, kernel_size=1, padding=padding)(up)
+    # up = tf.keras.layers.LeakyReLU()(up)
+    # out = Conv2D(2, kernel_size=1)(up)
+    # predict = Softmax(axis=-1)(out)
+    return Model(img_inputs, block_1.outputs, name='Unet')
 
 
 if __name__ == '__main__':

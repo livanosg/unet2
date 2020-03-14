@@ -7,7 +7,7 @@ eps = 1e-8
 
 def dice_micro(y_true, y_pred):
     """Weighted Dice Loss computed from class-map label.
-    dice_type: 'micro' 'macro' 'weighted'
+    dice_type: 'micro'
     """
 
     # F1 micro
@@ -25,7 +25,7 @@ def dice_micro(y_true, y_pred):
 
 def dice_macro(y_true, y_pred):
     """Weighted Dice Loss computed from class-map label.
-    dice_type: 'micro' 'macro' 'weighted'"""
+    dice_type: 'macro'"""
     true_positives = tf.reduce_sum(tf.math.multiply(y_pred, y_true), axis=[0, 1, 2])  # <== [class_1, class_2]
     false_positives = tf.reduce_sum(tf.math.abs(tf.math.multiply(y_pred, tf.math.subtract(y_true, 1))), axis=[0, 1, 2])
     false_negatives = tf.reduce_sum(tf.math.abs(tf.math.multiply(tf.math.subtract(y_pred, 1), y_true)), axis=[0, 1, 2])
@@ -39,6 +39,9 @@ def dice_macro(y_true, y_pred):
 
 
 def dice_weighted(y_true, y_pred):
+    """Weighted Dice Loss computed from class-map label.
+    dice_type: 'weighted'"""
+
     weights_intermediate = tf.reduce_sum(y_true, axis=[0, 1, 2])
     weights = tf.math.divide_no_nan(weights_intermediate, tf.reduce_sum(weights_intermediate))
     true_positives = tf.reduce_sum(tf.math.multiply(y_pred, y_true), axis=[0, 1, 2])  # <== [class_1, class_2]

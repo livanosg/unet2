@@ -71,13 +71,13 @@ def data_gen(dataset, args, only_paths=False):
                 if np.random.random() < args.augm_prob:
                     dicom, label = augmentations(dcm_image=dicom, grd_image=label, augm_set=args.augm_set)
 
-                if args.modality in ('MR', 'ALL'):
-                    if args.modality == 'MR':
-                        resize = 320 - dicom.shape[0]
-                    else:
-                        resize = 512 - dicom.shape[0]
-                    dicom = np.pad(dicom, [int(resize / 2)], mode='constant', constant_values=np.min(dicom))
-                    label = np.pad(label, [int(resize / 2)], mode='constant', constant_values=np.min(label))
+            if args.modality in ('MR', 'ALL'):
+                if args.modality == 'MR':
+                    resize = 320 - dicom.shape[0]
+                else:
+                    resize = 512 - dicom.shape[0]
+                dicom = np.pad(dicom, [int(resize / 2)], mode='constant', constant_values=np.min(dicom))
+                label = np.pad(label, [int(resize / 2)], mode='constant', constant_values=0)
 
             dicom = (dicom - np.mean(dicom)) / np.std(dicom)  # Normalize
             label[label > 0] = 1
