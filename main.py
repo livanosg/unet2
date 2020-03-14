@@ -39,8 +39,8 @@ PARSER.add_argument('-es', '--early_stop', type=int, default=2, help='Epochs wit
 ARGS = PARSER.parse_args()
 
 if __name__ == '__main__':
-    model = unet(ARGS)
-    model.summary()
-    plot_model(model, 'model.png', show_shapes=True)
-    # from train import train_fn
-    # train_fn(ARGS)
+    # model = unet(ARGS)
+    # model.summary()
+    # plot_model(model, 'model.png', show_shapes=True)
+    from train import train_fn
+    train_fn(ARGS)
