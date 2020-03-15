@@ -19,7 +19,6 @@ from callbacks import LearningRateLogging, ShowImages, MetricsSummaries
 # noinspection PyUnboundLocalVariable
 def train_fn(args):
     # Distribution Strategy
-    global model_path, load_model_path, model
     environ['CUDA_VISIBLE_DEVICES'] = '0,1'
     environ['TF_XLA_FLAGS'] = 'none'
     # environ['TF_XLA_FLAGS'] = "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit " + root_dir
@@ -93,7 +92,7 @@ def train_fn(args):
 
     show_images = ShowImages(model_path=model_path, args=args)
     show_summaries = MetricsSummaries(model_path=model_path, args=args)
-    early_stopping = EarlyStopping(patience=args.early_stop,verbose=1, mode='min')
+    early_stopping = EarlyStopping(patience=args.early_stop, verbose=1, mode='min')
     save_model = ModelCheckpoint(filepath=model_saves + '/weights{epoch:03d}', verbose=1, save_best_only=True)
     callbacks = [lr_log, learning_rate, save_model, early_stopping, show_images, show_summaries]
 

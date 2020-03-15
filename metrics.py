@@ -1,6 +1,4 @@
 import tensorflow as tf
-from tensorflow_addons.utils.types import FloatTensorLike, AcceptableDTypes
-from typeguard import typechecked
 
 eps = 1e-8
 

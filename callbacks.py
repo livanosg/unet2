@@ -24,13 +24,14 @@ class LearningRateLogging(tf.keras.callbacks.Callback):
         lr = float(tf.keras.backend.get_value(self.model.optimizer.lr))
 
         if self.log_freq == 'epoch':
-            print('\nLearning rate on epoch {}: {}'.format(epoch, lr))
+            print('\nLearning rate on epoch {}: {}'.format(epoch + 1, lr))
         if self.summary_freq == 'epoch':
             with self.train_writer.as_default():
                 tf.summary.scalar('Learning rate', lr, step=epoch)
             self.train_writer.flush()
 
 
+# noinspection PyUnboundLocalVariable
 class ShowImages(tf.keras.callbacks.Callback):
     def __init__(self, model_path, args, save_freq='epoch'):
         super().__init__()
