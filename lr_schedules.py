@@ -135,16 +135,16 @@ class CyclicLR(Callback):
 
 
 class LearningRateExponentialDecay(Callback):
-    def __init__(self, init_learining_rate, decay_rate, decay_steps):
+    def __init__(self, args):
         super().__init__()
-        self.init_learining_rate = init_learining_rate
-        self.decay_rate = decay_rate
-        self.decay_steps = decay_steps
+        self.init_learining_rate = args.lr
+        self.decay_rate = args.decay_rate
+        self.decay_steps = args.epochs * args.epoch_steps
         self.global_step = 0
 
     def on_batch_end(self, batch, logs=None):
         actual_lr = float(K.get_value(self.model.optimizer.lr))
-        decayed_learning_rate = actual_lr * self.decay_rate ^ (self.global_step / self.decay_steps)
+        decayed_learning_rate = actual_lr * (self.decay_rate ** (self.global_step / self.decay_steps))
         K.set_value(self.model.optimizer.lr, decayed_learning_rate)
         self.global_step += 1
 
@@ -155,5 +155,4 @@ def lr_schedule(args):
             return CyclicLR(base_lr=args.lr, max_lr=5 * args.lr, step_size=5 * args.epoch_steps)
         if args.lr_type == 'exp':
             print('Exponential decay learning rate schedule selected.')
-            return LearningRateExponentialDecay(init_learining_rate=args.lr, decay_rate=args.decay_rate,
-                                                decay_steps=args.epochs * args.epoch_steps)
+            return LearningRateExponentialDecay(args=args)

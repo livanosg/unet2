@@ -1,23 +1,23 @@
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras import backend as K
-from tensorflow_core.python.keras.callbacks import ModelCheckpoint
-
 from helper_fns import format_gray_image
+from input_fns import train_eval_input_fn
 
 
 class LearningRateLogging(tf.keras.callbacks.Callback):
-    def __init__(self, summary_freq='batch', log_freq='epoch'):
+    def __init__(self, model_path, summary_freq='epoch', log_freq='epoch'):
         super().__init__()
         self.log_freq = log_freq
         self.summary_freq = summary_freq
+        self.train_writer = tf.summary.create_file_writer(logdir=model_path + '/train')
 
     def on_train_batch_begin(self, batch, logs=None):
         lr = float(tf.keras.backend.get_value(self.model.optimizer.lr))
         if self.log_freq == 'batch':
             print('\nLearning rate on batch {}: {}'.format(batch, lr))
         if self.summary_freq == 'batch':
-            tf.summary.scalar('1-Learning rate / step', lr)
+            with self.train_writer.as_default():
+                tf.summary.scalar('Learning rate', lr, step=batch)
+            self.train_writer.flush()
         # print('\nLearning rate for step {} is {}'.format(batch + 1, self.lr))
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -26,65 +26,88 @@ class LearningRateLogging(tf.keras.callbacks.Callback):
         if self.log_freq == 'epoch':
             print('\nLearning rate on epoch {}: {}'.format(epoch, lr))
         if self.summary_freq == 'epoch':
-            tf.summary.scalar('1-Learning rate / epoch', lr)
+            with self.train_writer.as_default():
+                tf.summary.scalar('Learning rate', lr, step=epoch)
+            self.train_writer.flush()
 
 
-class InputOutputResults(tf.keras.callbacks.Callback):
-    def __init__(self, logdir, train_data, eval_data, save_freq='epoch'):
+class ShowImages(tf.keras.callbacks.Callback):
+    def __init__(self, model_path, args, save_freq='epoch'):
         super().__init__()
-        self.data_dict = {'train': train_data, 'eval': eval_data}
-        self.logdir = logdir
+        self.dataset_fn = train_eval_input_fn
+        self.args = args
         self.save_freq = save_freq
         self.val_epoch = 0
+        self.train_writer = tf.summary.create_file_writer(logdir=model_path + '/train')
+        self.val_writer = tf.summary.create_file_writer(logdir=model_path + '/validation')
 
     def on_train_batch_end(self, batch, logs=None):
         if (isinstance(self.save_freq, int) and
             batch % self.save_freq == 0) or (isinstance(self.save_freq, str) and
                                              self.save_freq == 'batch'):
-            self.write_images(mode='train', step=batch)
+            self.write_images(mode='train', step=batch, writer=self.train_writer)
 
     def on_epoch_end(self, epoch, logs=None):
         if isinstance(self.save_freq, str) and self.save_freq == 'epoch':
-            self.write_images(mode='train', step=epoch)
+            self.write_images(mode='train', step=epoch, writer=self.train_writer)
+            self.write_images(mode='eval', step=epoch, writer=self.val_writer)
         self.val_epoch = epoch
 
     def on_test_end(self, logs=None):
-        self.write_images(mode='eval', step=self.val_epoch)
+        self.write_images(mode='eval', step=self.val_epoch, writer=self.val_writer)
 
-    def write_images(self, mode, step):
-        assert mode in ['train', 'eval']
-        if mode == 'train':
-            writer = tf.summary.create_file_writer(logdir=self.logdir + '/{}'.format(mode))
-            dataset = self.data_dict['train']
-        if mode == 'eval':
-            writer = tf.summary.create_file_writer(logdir=self.logdir + '/{}'.format('validation'))
-            dataset = self.data_dict['eval']
-        image, label = next(dataset.shuffle(200).__iter__())
+    def write_images(self, mode, step, writer):
+        i = 0
+        for element in self.dataset_fn(mode=mode, args=self.args):
+            i += 1
+            if i > 0:
+                break
+        image, label = element[0], element[1]
         output = self.model.predict_on_batch(image)
-        image_img = format_gray_image(image)
-        output_img = format_gray_image(output)
-        label_img = format_gray_image(label)
+        images = {'1 Input': format_gray_image(image),
+                  '2 Label': format_gray_image(label),
+                  '3 Liver_Pred': tf.expand_dims(output[:, :, :, 1], -1),
+                  '4 Output': format_gray_image(output)}
         with writer.as_default():
-            tf.summary.image('1 Input', image_img, step=step, max_outputs=1)
-            tf.summary.image('2 Label', label_img, step=step, max_outputs=1)
-            tf.summary.image('3 Liver_Pred', tf.expand_dims(output[:, :, :, 1], -1), step=step, max_outputs=1)
-            tf.summary.image('4 Output', output_img, step=step, max_outputs=1)
-
+            if mode == 'eval':
+                mode = 'validation'
+            for keys, values in images.items():
+                tf.summary.image(mode + '/' + keys, values, step=step, max_outputs=1)
         writer.flush()
 
 
-class LoadWeightsCallback(tf.keras.callbacks.Callback):
-    _chief_worker_only = False
-
-    def __init__(self, weights, optimizer_weights, epoch_steps):
+# noinspection PyMethodOverriding
+class MetricsSummaries(tf.keras.callbacks.Callback):
+    def __init__(self, model_path, args, summary_freq='epoch'):
         super().__init__()
-        self.weights = weights
-        self.optimizer_weights = optimizer_weights
-        self.epoch_steps = epoch_steps
+        self.summary_freq = summary_freq
+        self.train_writer = tf.summary.create_file_writer(logdir=model_path + '/train')
+        self.val_writer = tf.summary.create_file_writer(logdir=model_path + '/validation')
+        self.epoch = 0
+        self.batch = 0
+        self.epoch_steps = args.epoch_steps
 
-    def on_train_begin(self, logs=None):
-        self.model.set_weights(self.weights)
-        self.model.optimizer.set_weights(self.optimizer_weights)
-        initial_epoch = self.model.optimizer.iterations.numpy() // self.epoch_steps
-        print('Weights and optimizer state loaded.')
-        print('Initial_epoch: {}'.format(initial_epoch))
+    def on_epoch_begin(self, epoch, logs):
+        self.epoch = epoch
+
+    def on_train_batch_begin(self, batch, logs=None):
+        self.batch = self.epoch * self.epoch_steps + batch
+
+    def on_epoch_end(self, epoch, logs):
+        if self.summary_freq == 'epoch':
+            for key, value in logs.items():
+                if 'val_' in key:
+                    with self.val_writer.as_default():
+                        if key not in ('loss', 'val_loss'):
+                            tf.summary.scalar(name='Metrics/' + key.replace('val_', ''), data=value, step=self.epoch)
+                        else:
+                            tf.summary.scalar(name=key.replace('val_', ''), data=value, step=self.epoch)
+                else:
+                    with self.train_writer.as_default():
+                        if key not in ('loss', 'val_loss'):
+                            tf.summary.scalar(name='Metrics/' + key, data=value, step=self.epoch)
+                        else:
+                            tf.summary.scalar(name=key, data=value, step=self.epoch)
+
+            self.val_writer.flush()
+            self.train_writer.flush()
