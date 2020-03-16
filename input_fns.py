@@ -49,7 +49,6 @@ def input_dcm(mode, args):
         dcm_paths = list(dcm_paths)
         grd_paths = list(grd_paths)
         dcm_data_set = tf.data.Dataset.from_tensor_slices(dcm_paths)
-        tf.print(dcm_data_set)
         dcm_data_set = dcm_data_set.map(lambda x: tfio.image.decode_dicom_image(tf.io.read_file(filename=x), color_dim=True, scale='preserve', dtype=tf.float32))
         dcm_data_set = dcm_data_set.map(lambda x: tf.image.per_image_standardization(x))
         dcm_data_set = dcm_data_set.map(lambda x: tf.image.random_contrast(x, 0.5, 1.5))
@@ -98,14 +97,13 @@ def apply_blur(img):
 
 
 def augmentations(img, gt_img):
-    img_ch = tf.shape(img)[-1]
+    img_dims, img_ch = tf.shape(img)[1:3], tf.shape(img)[-1]
     stacked = tf.concat([img, tf.cast(gt_img, img.dtype)], -1)
     stacked = tf.image.random_flip_left_right(stacked)
-
     stacked = tf.image.random_flip_up_down(stacked)
-    a = tf.random.uniform([0], -25, 26, tf.int32)
-    stacked = tfa.image.rotate(stacked, angles=tf.cast(a, tf.float32))
-    return stacked[..., :img_ch], stacked[..., img_ch:]
+    a = tf.random.uniform([2], img_dims[0]//4, img_dims[0]//4, tf.int32)
+    stacked = tf.image.crop_to_bounding_box(stacked,a[0], a[1])
+    return tfa.image.rotate(stacked[..., :img_ch], angles=a), tfa.image.rotate(stacked[..., img_ch:], angles=a)
 
 
 if __name__ == '__main__':
