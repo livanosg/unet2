@@ -14,7 +14,6 @@ def flips(input_image, label):
     return flip(input_image, flip_flag), flip(label, flip_flag)
 
 
-# noinspection DuplicatedCode
 def s_n_p(input_image, label):
     p, b = 0.5, 0.0005
     max_val = np.max(input_image)
@@ -63,21 +62,14 @@ def flips2(input_image, label_1, label_2):
     return flip(input_image, flip_flag), flip(label_1, flip_flag), flip(label_2, flip_flag)
 
 
-def augmentations(dcm_image, grd_image, augm_set):
+def augmentations(dcm_image, grd_image):
     # Random choice of augmentation method
     all_processes = [rotate, flips, random_translation, s_n_p, sharp, gaussian_blur, contrast]
-    if augm_set == 'geom':
-        augm = np.random.choice(all_processes[:3])
-    elif augm_set == 'dist':
-        augm = np.random.choice(all_processes[3:])
-    elif augm_set == 'all':
-        augm = np.random.choice(all_processes[:3])
+    augm = np.random.choice(all_processes[:3])
+    dcm_image, grd_image = augm(dcm_image, grd_image)
+    prob = np.random.random()
+    if prob < 0.5:  # Data augmentation:
+        all_processes.pop(all_processes.index(augm))  # pop patients from list
+        augm = np.random.choice(all_processes)
         dcm_image, grd_image = augm(dcm_image, grd_image)
-        prob = np.random.random()
-        if prob < 0.5:  # Data augmentation:
-            all_processes.pop(all_processes.index(augm))  # pop patients from list
-            augm = np.random.choice(all_processes)
-            dcm_image, grd_image = augm(dcm_image, grd_image)
-    else:
-        raise ValueError('Wrong value for augm_set. {}'.format(augm_set))
     return augm(dcm_image, grd_image)

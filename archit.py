@@ -43,29 +43,26 @@ def up_block(inputs, connection, filters, dropout, batch_norm, padding='same'):
     return double_conv(up, filters//2, dropout=dropout, batch_norm=batch_norm, padding=padding)
 
 
-def unet(args):
-    if args.modality in ('CT', 'ALL'):
-        input_shape = [512, 512, 1]
-    else:
-        input_shape = [320, 320, 1]
-    img_inputs = Input(shape=input_shape)
-    down, connection_1 = down_block(img_inputs, 32, dropout=args.dropout, batch_norm=args.no_bn)
-    down, connection_2 = down_block(down, 64, dropout=args.dropout, batch_norm=args.no_bn)
-    down, connection_3 = down_block(down, 128, dropout=args.dropout, batch_norm=args.no_bn)
-    down, connection_4 = down_block(down, 256, dropout=args.dropout, batch_norm=args.no_bn)
-    bridge = double_conv(inputs=down, filters=1024, dropout=args.dropout, batch_norm=args.no_bn)
-    up = up_block(inputs=bridge, connection=connection_4, filters=256, dropout=args.dropout, batch_norm=args.no_bn)
-    up = up_block(inputs=up, connection=connection_3, filters=128, dropout=args.dropout, batch_norm=args.no_bn)
-    up = up_block(inputs=up, connection=connection_2, filters=64, dropout=args.dropout, batch_norm=args.no_bn)
-    up = up_block(inputs=up, connection=connection_1, filters=32, dropout=args.dropout, batch_norm=args.no_bn)
-    up = Conv2D(32, kernel_size=3, padding='same')(up)
-    up = LeakyReLU()(up)
-    up = Conv2D(32, kernel_size=1, padding='same')(up)
-    up = LeakyReLU()(up)
-    up = Conv2D(2, kernel_size=1, padding='same')(up)
-    predict = Softmax(axis=-1)(up)
-    model = Model(img_inputs, predict, name='Unet')
-    return model
+def unet(args, input_shape, strategy):
+    with strategy.scope():
+        img_inputs = Input(shape=input_shape + [1])
+        down, connection_1 = down_block(img_inputs, 32, dropout=args.dropout, batch_norm=args.no_bn)
+        down, connection_2 = down_block(down, 64, dropout=args.dropout, batch_norm=args.no_bn)
+        down, connection_3 = down_block(down, 128, dropout=args.dropout, batch_norm=args.no_bn)
+        down, connection_4 = down_block(down, 256, dropout=args.dropout, batch_norm=args.no_bn)
+        bridge = double_conv(inputs=down, filters=1024, dropout=args.dropout, batch_norm=args.no_bn)
+        up = up_block(inputs=bridge, connection=connection_4, filters=256, dropout=args.dropout, batch_norm=args.no_bn)
+        up = up_block(inputs=up, connection=connection_3, filters=128, dropout=args.dropout, batch_norm=args.no_bn)
+        up = up_block(inputs=up, connection=connection_2, filters=64, dropout=args.dropout, batch_norm=args.no_bn)
+        up = up_block(inputs=up, connection=connection_1, filters=32, dropout=args.dropout, batch_norm=args.no_bn)
+        up = Conv2D(32, kernel_size=3, padding='same')(up)
+        up = LeakyReLU()(up)
+        up = Conv2D(32, kernel_size=1, padding='same')(up)
+        up = LeakyReLU()(up)
+        up = Conv2D(2, kernel_size=1, padding='same')(up)
+        predict = Softmax(axis=-1)(up)
+        model = Model(img_inputs, predict, name='Unet')
+        return model
 
 
 if __name__ == '__main__':

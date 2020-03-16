@@ -152,7 +152,7 @@ class LearningRateExponentialDecay(Callback):
 def lr_schedule(args):
         if args.lr_type == 'cycl':
             print('Cyclic learning rate schedule selected.')
-            return CyclicLR(base_lr=args.lr, max_lr=5 * args.lr, step_size=5 * args.epoch_steps)
+            return CyclicLR(base_lr=args.lr, max_lr=5 * args.lr, step_size=7 * args.epoch_steps)
         if args.lr_type == 'exp':
             print('Exponential decay learning rate schedule selected.')
             return LearningRateExponentialDecay(args=args)

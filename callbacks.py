@@ -33,7 +33,7 @@ class LearningRateLogging(tf.keras.callbacks.Callback):
 
 # noinspection PyUnboundLocalVariable
 class ShowImages(tf.keras.callbacks.Callback):
-    def __init__(self, model_path, args, save_freq='epoch'):
+    def __init__(self, model_path, args, input_shape, save_freq='epoch'):
         super().__init__()
         self.dataset_fn = train_eval_input_fn
         self.args = args
@@ -41,7 +41,7 @@ class ShowImages(tf.keras.callbacks.Callback):
         self.val_epoch = 0
         self.train_writer = tf.summary.create_file_writer(logdir=model_path + '/train')
         self.val_writer = tf.summary.create_file_writer(logdir=model_path + '/validation')
-
+        self.input_shape = input_shape
     def on_train_batch_end(self, batch, logs=None):
         if (isinstance(self.save_freq, int) and
             batch % self.save_freq == 0) or (isinstance(self.save_freq, str) and
@@ -59,7 +59,7 @@ class ShowImages(tf.keras.callbacks.Callback):
 
     def write_images(self, mode, step, writer):
         i = 0
-        for element in self.dataset_fn(mode=mode, args=self.args):
+        for element in self.dataset_fn(mode=mode, args=self.args, input_shape=self.input_shape):
             i += 1
             if i > 0:
                 break

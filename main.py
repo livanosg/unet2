@@ -2,9 +2,9 @@ import argparse
 
 PARSER = argparse.ArgumentParser(description='Train a model according to given hyperparameters.')
 
-PARSER.add_argument('-M', '--mode', type=str, default='train',
-                    choices=['train', 'test'],  # TODO EXPORT MODEL
-                    help='Define the estimator mode')
+PARSER.add_argument('-M', '--mode', type=str, default='testing',
+                    choices=['train', 'eval', 'pred', 'test', 'testing'],
+                    help='test == test data, testing == testing model')
 PARSER.add_argument('-load', '--load_model', type=str, default='',
                     help=' If declared, the model saved will be loaded.')
 PARSER.add_argument('-resume', action='store_true', default=False,
@@ -36,6 +36,9 @@ PARSER.add_argument('-e', '--epochs', type=int, default=100,
                     help='Training epochs.')
 PARSER.add_argument('-es', '--early_stop', type=int, default=25,
                     help='Epochs without minimizing target.')
+PARSER.add_argument('-distributed', action='store_true', default=False,
+                    help='Distributed training.')
+
 ARGS = PARSER.parse_args()
 
 if __name__ == '__main__':
