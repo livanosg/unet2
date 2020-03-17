@@ -2,7 +2,7 @@ import numpy as np
 from tensorflow.keras.callbacks import Callback
 from tensorflow.keras import backend as K
 
-
+# TODO Continue learning rate from where it stopped
 class CyclicLR(Callback):
     """This callback implements a cyclical learning rate policy (CLR).
     The method cycles the learning rate between two boundaries with
@@ -112,15 +112,14 @@ class CyclicLR(Callback):
             return self.base_lr + (self.max_lr - self.base_lr) * np.maximum(0, (1 - x)) * self.scale_fn(
                 self.clr_iterations)
 
-    def on_train_begin(self, logs={}):
-        logs = logs or {}
+    def on_train_begin(self, logs=None):
 
         if self.clr_iterations == 0:
             K.set_value(self.model.optimizer.lr, self.base_lr)
         else:
             K.set_value(self.model.optimizer.lr, self.clr())
 
-    def on_batch_end(self, epoch, logs=None):
+    def on_batch_end(self, batch, logs=None):
         logs = logs or {}
         self.trn_iterations += 1
         self.clr_iterations += 1

@@ -4,12 +4,11 @@ from glob import glob
 from math import ceil
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
-from tensorflow_core.python.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 from archit import unet
 from config import paths, root_dir
-from data_generators import data_gen
-from input_fns import train_eval_input_fn
+from input_fns import input_dcm
 from loss_fn import custom_loss, weighted_crossentropy, weighted_log_dice_loss
 from lr_schedules import lr_schedule
 from metrics import dice_weighted, dice_micro, dice_macro
@@ -34,16 +33,16 @@ def train_fn(args):
     if args.mode == 'test':
         train_size = 10
         eval_size = 5
+        args.epoch_steps = ceil(train_size / args.batch_size)
+        args.eval_steps = ceil(eval_size / args.batch_size)
+
     else:
-        train_size = len(list(data_gen(dataset=tf.estimator.ModeKeys.TRAIN, args=args, only_paths=True)))
-        eval_size = len(list(data_gen(dataset=tf.estimator.ModeKeys.EVAL, args=args, only_paths=True)))
+        args.epoch_steps = None
+        args.eval_steps = None
 
-    train_dataset = train_eval_input_fn(mode='train', input_shape=input_shape, args=args)
-    eval_dataset = train_eval_input_fn(mode='eval', input_shape=input_shape, args=args)
-    print('Train data size: {}, Eval_data size: {}'.format(train_size, eval_size))
+    train_dataset = input_dcm(mode='train', args=args)
+    eval_dataset = input_dcm(mode='eval', args=args)
 
-    args.epoch_steps = ceil(train_size / args.batch_size)
-    args.eval_steps = ceil(eval_size / args.batch_size)
     optimizer = Adam(learning_rate=args.lr)
     metrics = [dice_micro]
     print('devices', tf.config.list_physical_devices('GPU'))
@@ -61,7 +60,7 @@ def train_fn(args):
             with tf.keras.utils.custom_object_scope(custom_objects):
                 print('Model will be loaded from : {}'.format(load_model_path))
                 model = tf.keras.models.load_model(load_model_path)
-            if args.resume:
+            if not args.resume:
                 config = model.get_config()
                 weights = model.get_weights()
                 model = tf.keras.Model.from_config(config)
@@ -69,7 +68,7 @@ def train_fn(args):
         else:
             model = unet(args, input_shape, strategy)
 
-        if (not args.load_model) or args.resume:
+        if (not args.load_model) or (not args.resume):
             model.compile(optimizer=optimizer, loss=weighted_crossentropy, metrics=metrics)
             print('New training session')
             trial = 0

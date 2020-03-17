@@ -1,8 +1,6 @@
 from os import makedirs
 from tensorflow import version
 from config import root_dir
-import tensorflow as tf
-
 
 
 def save_logs(args, log_data):
