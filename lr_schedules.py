@@ -140,8 +140,12 @@ class LearningRateExponentialDecay(Callback):
         self.decay_rate = args.decay_rate
         self.decay_steps = args.epochs * args.epoch_steps
         self.global_step = 0
+        self.epoch = 0
 
-    def on_batch_end(self, batch, logs=None):
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch = epoch
+
+    def on_batch_end(self, batch, logs={}):
         actual_lr = float(K.get_value(self.model.optimizer.lr))
         decayed_learning_rate = actual_lr * (self.decay_rate ** (self.global_step / self.decay_steps))
         K.set_value(self.model.optimizer.lr, decayed_learning_rate)

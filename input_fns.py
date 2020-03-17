@@ -33,26 +33,24 @@ def input_dcm(mode, args):
         dataset = dataset.map(lambda x, y: (tf.squeeze(read_dcm(x), axis=0), read_png(y)))
         if mode in ('train', 'testing'):
             dataset = dataset.map(augmentations_fn)
+            if args.modality in ('CT', 'ALL'):
+                new_shape = 512
+            else:
+                new_shape = 320
 
-        dataset = dataset.map(lambda x, y: preprocess(x, y, args.classes))
-        if args.modality in ('CT', 'ALL'):
-            new_shape = 512
-        else:
-            new_shape = 320
+            dataset = dataset.map(
+                lambda x, y: (tf.image.pad_to_bounding_box(x, offset_height=(new_shape - tf.shape(x)[0]) // 2,
+                                                           offset_width=(new_shape - tf.shape(x)[1]) // 2,
+                                                           target_height=new_shape, target_width=new_shape),
+                              tf.image.pad_to_bounding_box(y, offset_height=(new_shape - tf.shape(y)[0]) // 2,
+                                                           offset_width=(new_shape - tf.shape(y)[1]) // 2,
+                                                           target_height=new_shape, target_width=new_shape)))
 
-        dataset = dataset.map(
-            lambda x, y: (tf.image.pad_to_bounding_box(x, offset_height=(new_shape - tf.shape(x)[0]) // 2,
-                                                       offset_width=(new_shape - tf.shape(x)[1]) // 2,
-                                                       target_height=new_shape, target_width=new_shape),
-                          tf.image.pad_to_bounding_box(y, offset_height=(new_shape - tf.shape(y)[0]) // 2,
-                                                       offset_width=(new_shape - tf.shape(y)[1]) // 2,
-                                                       target_height=new_shape, target_width=new_shape)))
-
+        dataset = dataset.map(lambda x, y: standardize(x, y, args.classes))
         if mode in ('train', 'testing'):
             dataset = dataset.batch(args.batch_size)
         if mode == 'eval':
             dataset = dataset.batch(1)
-
     else:
         paths = get_paths(mode, args.modality)
         dataset = tf.data.Dataset.from_tensor_slices(paths)
@@ -60,12 +58,12 @@ def input_dcm(mode, args):
         dataset = dataset.map(read_dcm)
         dataset = dataset.batch(args.batch_size)
         dataset = dataset.map(lambda x: tf.image.per_image_standardization(x))
-
+    dataset = dataset.repeat()
     dataset = dataset.prefetch(buffer_size=-1)
     return dataset
 
 
-def preprocess(dcm, label, classes):
+def standardize(dcm, label, classes):
     label = tf.where(tf.logical_or(tf.equal(label, 63), tf.equal(label, 255)), tf.ones_like(label),
                      tf.zeros_like(label))
     label = tf.one_hot(tf.cast(tf.squeeze(label, -1), tf.int32), depth=classes)

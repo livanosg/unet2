@@ -2,7 +2,7 @@ import argparse
 
 PARSER = argparse.ArgumentParser(description='Train a model according to given hyperparameters.')
 
-PARSER.add_argument('-M', '--mode', type=str, default='testing',
+PARSER.add_argument('-M', '--mode', type=str, default='train',
                     choices=['train', 'eval', 'pred', 'test', 'testing'],
                     help='test == test data, testing == testing model')
 PARSER.add_argument('-load', '--load_model', type=str, default='',
